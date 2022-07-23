@@ -22,4 +22,4 @@ closure();
 > **Note:** only an interpreter is provided and compiled code must be obtained from a supported luau compiler
 
 # License ⚖
-[MIT LICENSE](https://github.com/uniquadev/LuauVM/LICENSE.txt)
+[MIT LICENSE](https://github.com/uniquadev/LuauVM/blob/master/LICENSE.txt)
