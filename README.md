@@ -1,4 +1,4 @@
-LuauVM <img src="https://raw.githubusercontent.com/Roblox/luau/master/docs/logo.svg" height="40">
+LuauVM <img src="https://raw.githubusercontent.com/Roblox/luau/master/docs/logo.svg" height="40"> ![CI](https://github.com/uniquadev/LuauVM/workflows/build/badge.svg)
 ====
 LuauVM (lowercase u, /ˈlu.aʊ/) is a fast and small [luau](https://github.com/Roblox/luau) interpreter wrote in luau. It aims to provide sandboxing, arbitrary code execution and "obfuscation" templates.
 
@@ -20,6 +20,10 @@ closure();
 ```
 
 > **Note:** only an interpreter is provided and compiled code must be obtained from a supported luau compiler
+
+# Tests
+1) Run `python MakeTests\main.py`
+2) Run `python MakeTests\run.py`
 
 # License
 [MIT LICENSE](https://github.com/uniquadev/LuauVM/blob/master/LICENSE.txt)
