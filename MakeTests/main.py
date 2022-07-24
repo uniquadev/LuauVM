@@ -9,7 +9,7 @@ LUA_BIN = SYSTEM == "Windows" and "luau.exe" or SYSTEM == "Linux" and "./luau" o
 
 # read MakeTests/template.luau as TEMPLATE
 TEMPLATE = ""
-with open("MakeTests/template.luau", "r") as f:
+with open("MakeTests/template.lua", "r") as f:
     TEMPLATE = f.read()
 
 # write a luau test file inside Tests folder
