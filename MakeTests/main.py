@@ -2,6 +2,10 @@
 from asyncio import subprocess
 import asyncio
 import os
+import platform
+
+SYSTEM = platform.system()
+LUA_BIN = SYSTEM == "Windows" and "luau.exe" or SYSTEM == "Linux" and "./luau" or "luau"
 
 # read MakeTests/template.luau as TEMPLATE
 TEMPLATE = ""
@@ -12,7 +16,7 @@ with open("MakeTests/template.luau", "r") as f:
 async def make_test(file:str):
     # luau compile the test chunk
     proc = await subprocess.create_subprocess_shell(
-        f'luau --compile=binary MakeTests/src/{file}', stdout=subprocess.PIPE
+        f'{LUA_BIN} --compile=binary MakeTests/src/{file}', stdout=subprocess.PIPE
     )
     # read stdout and get the bytecode
     bytecode = await proc.communicate()

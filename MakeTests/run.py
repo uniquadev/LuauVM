@@ -20,7 +20,7 @@ async def run_test(file):
     # print out
     print(output)
     # check if out contain FAILED
-    if "FAILED" in output:
+    if not ("PASSED" in output):
         exit(400)
 
 async def main():
