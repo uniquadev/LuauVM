@@ -2,7 +2,9 @@ LuauVM <img src="https://raw.githubusercontent.com/Roblox/luau/master/docs/logo.
 ====
 LuauVM (lowercase u, /ˈlu.aʊ/) is a fast and small [luau](https://github.com/Roblox/luau) interpreter wrote in luau. It aims to provide sandboxing, arbitrary code execution and "obfuscation" templates.
 
-This software can be used as study material for luau - lua 5.x internals. 
+This software can be used as study material for luau - lua 5.x internals.
+
+> NOTE: This VM is still work in progress and it can execute scripts like the ones in [MakeTests/src](https://github.com/uniquadev/LuauVM/tree/master/MakeTests/src) folder.
 
 # Usage
 ```lua
