@@ -344,8 +344,8 @@ end;
 
 -- Bytecode version; runtime supports [MIN, MAX], compiler emits TARGET by default but may emit a higher version when flags are enabled
 local LBC_VERSION_MIN = 2;
-local LBC_VERSION_MAX = 2;
-local LBC_VERSION_TARGET = 2;
+local LBC_VERSION_MAX = 3;
+local LBC_VERSION_TARGET = 3; -- (tested on)
 
 -- Bytecode tags, used internally for bytecode encoded as a string
 local LuauBytecodeTag =
