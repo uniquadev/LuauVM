@@ -148,6 +148,27 @@ OP_TO_CALL[LuauOpcode.LOP_MOVE] = function(state:lobject.ClosureState)
     state.stack[id] = state.stack[id2];
 end;
 
+OP_TO_CALL[LuauOpcode.LOP_GETGLOBAL] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+    local aux = state.proto.code[state.pc];
+    local kv = state.proto.k[aux];
+
+    local id = LUAU_INSN_A(insn);
+    state.stack[id] = state.env[kv];
+    state.pc += 1;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_SETGLOBAL] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+    local aux = state.proto.code[state.pc];
+    local kv = state.proto.k[aux];
+    
+    state.env[kv] = state.stack[LUAU_INSN_A(insn)];
+    state.pc += 1;
+end;
+
 OP_TO_CALL[LuauOpcode.LOP_GETIMPORT] = function(state:lobject.ClosureState)
     local insn = state.insn;
     state.pc += 1;

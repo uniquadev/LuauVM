@@ -1,2 +1,2 @@
-print("hello bytecode!", 1);
+print("hello bytecode!");
 return 0;
