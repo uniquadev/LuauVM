@@ -1,8 +1,13 @@
+"""
+This script is responsible to build test scripts
+"""
+
 # imports
 from asyncio import subprocess
 import asyncio
 import os
 import platform
+from shutil import rmtree
 
 SYSTEM = platform.system()
 LUA_BIN = SYSTEM == "Windows" and "luau.exe" or SYSTEM == "Linux" and "./luau" or "luau"
@@ -13,8 +18,10 @@ with open("MakeTests/template.lua", "r") as f:
     TEMPLATE = f.read()
 
 # make Tests folder
-if not os.path.exists("Tests"):
-    os.makedirs("Tests")
+if os.path.exists("Tests"):
+    # recursive clear Tests folder if exists
+    rmtree("Tests")
+os.makedirs("Tests")
 
 # write a luau test file inside Tests folder
 async def make_test(file:str):

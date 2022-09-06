@@ -220,6 +220,86 @@ OP_TO_CALL[LuauOpcode.LOP_FASTCALL] = function(state:lobject.ClosureState)
     end;
 end;
 
+-- ADD, SUB, MUL, DIV, MOD, POW: compute arithmetic operation between two source registers
+OP_TO_CALL[LuauOpcode.LOP_ADD] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.stack[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b + c;
+    state.pc += 1;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_SUB] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.stack[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b - c;
+    state.pc += 1;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_MUL] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.stack[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b * c;
+    state.pc += 1;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_DIV] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.stack[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b / c;
+    state.pc += 1;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_MOD] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.stack[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b % c;
+    state.pc += 1;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_POW] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.stack[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b ^ c;
+    state.pc += 1;
+end;
+
+-- TODO
 OP_TO_CALL[LuauOpcode.LOP_PREPVARARGS] = function(state:lobject.ClosureState)
     state.pc += 1;
 end;

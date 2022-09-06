@@ -1,4 +1,8 @@
 # NOTE: this file is run by the test workflow on ubuntu
+"""
+This script is responsible to run test scripts
+"""
+
 # imports
 from asyncio import subprocess
 import os
