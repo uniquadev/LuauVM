@@ -107,6 +107,21 @@ OP_TO_CALL[LuauOpcode.LOP_NOP] = function(state:lobject.ClosureState)
     state.pc += 1;
 end;
 
+OP_TO_CALL[LuauOpcode.LOP_LOADNIL] = function(state:lobject.ClosureState)
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(state.insn);
+    state.stack[id] = nil;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_LOADB] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += LUAU_INSN_C(insn) + 1;
+
+    local id = LUAU_INSN_A(insn);
+    state.stack[id] = LUAU_INSN_B(insn) ~= 0;
+end;
+
 OP_TO_CALL[LuauOpcode.LOP_LOADN] = function(state:lobject.ClosureState)
     local insn = state.insn;
     state.pc += 1;
