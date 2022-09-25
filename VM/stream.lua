@@ -71,7 +71,7 @@ end;
 local function read_double(st:ByteStream) : number
     assert(st.pos + 7 <= st.size, "Trying to read past end of stream");
     local res = rd_dbl_basic(string.byte(st.data, st.pos, st.pos + 7))
-    st.pos += 4;
+    st.pos += 8;
     return res;
 end;
 

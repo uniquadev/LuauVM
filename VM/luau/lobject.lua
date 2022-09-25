@@ -21,13 +21,14 @@ export type Proto = {
 };
 
 export type ClosureState = {
-  run: boolean,
+  run: boolean,            -- whether the closure is running
   ret: {any},              -- return value of the function
   proto: Proto,
   insn: Instruction,       -- current instruction
-  pc: number,
+  pc: number,              -- program counter
   env: {any},              -- environment of the function
   vararg: {any},
+  ups: {any},              -- upvalues
   stack: {any},            -- aka memory
   top: number              -- top free slot of the stack
 };

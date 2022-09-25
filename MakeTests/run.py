@@ -1,7 +1,7 @@
-# NOTE: this file is run by the test workflow on ubuntu
 """
 This script is responsible to run test scripts
 """
+# NOTE: this script is run by the test workflow on ubuntu
 
 # imports
 from asyncio import subprocess
@@ -28,8 +28,9 @@ async def run_test(file):
         exit(400)
 
 async def main():
+    tests = os.listdir("Tests")
     # foreach all tests in Tests folder
-    for file in os.listdir("Tests"):
+    for file in tests:
         # perform the asyncio task
         await run_test(file)
     exit(0)

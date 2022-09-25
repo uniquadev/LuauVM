@@ -92,7 +92,7 @@ local function luau_load(data:string) -- aka lundump.h in Lua 5.x
         local sizek = readVarInt(st);
         local k = table.create(sizek);
         for j=0, sizek-1 do
-            local tt = st:read(); -- constant type
+            local tt = st:read(); -- constant type\
             if tt == LuauBytecodeTag.LBC_CONSTANT_NIL then
                 k[j] = nil;
                 continue
@@ -109,13 +109,16 @@ local function luau_load(data:string) -- aka lundump.h in Lua 5.x
                 local iid = st:read_4();
                 k[j] = resolve_import(envt, k, iid);
                 continue
+            elseif tt == LuauBytecodeTag.LBC_CONSTANT_CLOSURE then
+                local fid = readVarInt(st);
+                k[j] = protos[fid]; -- store proto struct to be used later
             else
                 error(("main: unknown constant type %d"):format(tt));
             end;
         end;
-        -- table.foreach(k, print)
-
+        -- debug: table.foreach(k, print)
         local sizep = readVarInt(st);
+        
         local p = table.create(sizep);
         for j=0, sizep-1 do
             p[j] = protos[readVarInt(st)];          -- read proto id and retrive it from proto table
@@ -186,6 +189,7 @@ local function luau_load(data:string) -- aka lundump.h in Lua 5.x
 
             debugname = debugname,
 
+            ups = upvalues,
             nups = nups,
             numparams = numparams,
             is_vararg = is_vararg,

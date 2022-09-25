@@ -18,7 +18,7 @@ local wrap_proto;
 local luau_execute;
 
 -- macros
-local function SIGNED_INT(int:number) return int - 2 ^ 32; end;
+local function SIGNED_INT(int:number) return int - (2 ^ 32); end;
 
 -- retrive instruction opcode
 local function LUAU_INSN_OP(inst:lobject.Instruction) return bit32.band(inst, 0xff); end;
@@ -28,22 +28,30 @@ local function LUAU_INSN_B(insn:lobject.Instruction) return bit32.band(bit32.rsh
 local function LUAU_INSN_C(insn:lobject.Instruction) return bit32.band(bit32.rshift(insn, 24), 0xff); end;
 
 -- AD encoding: one 8-bit value, one signed 16-bit value
-local function LUAU_INSN_D(insn:lobject.Instruction) return bit32.rshift(SIGNED_INT(insn), 16) end;
+local function LUAU_INSN_D(insn:lobject.Instruction)
+    local s = SIGNED_INT(insn);
+    local r =  bit32.rshift(s, 16) -- ty luau
+    -- negative
+    if bit32.btest(bit32.rshift(r, 15)) then
+        return r - 0x10000;
+    end
+    -- positive
+    return r;
+end;
 
 -- E encoding: one signed 24-bit value
 local function LUAU_INSN_E(insn:lobject.Instruction) return bit32.rshift(SIGNED_INT(insn), 8) end;
 
 -- initialize closure state and wrap it inside a real closure
-function wrap_proto(proto:lobject.Proto, env, upval)
+function wrap_proto(proto:lobject.Proto, env, ups)
+    assert(type(proto) == "table", "wrap_proto: proto is not a table");
+
     -- solve env
     env = env or getfenv(1); -- get env of the calling function
     -- wrap proto
     return function(...)
         -- solve vararg
-        local args = {...};
-        if proto.numparams < #args then
-            args = {unpack(args, 1, proto.numparams)};
-        end;
+        local args = {unpack({...}, 1, proto.numparams)};
         -- define closure state
         local state : lobject.ClosureState = {
             run = true,
@@ -53,9 +61,14 @@ function wrap_proto(proto:lobject.Proto, env, upval)
             insn = 0,
             env = env,
             vararg = args,
+            ups = ups or {},
             stack = table.create(proto.maxstacksize),
             top = -1
         };
+        -- load args in stack
+        for i = 1, #args do
+            state.stack[i-1] = args[i];
+        end;
         -- run closure
         local res = table.pack(pcall(luau_execute, state, env, upval));
         -- check res integrity
@@ -192,6 +205,28 @@ OP_TO_CALL[LuauOpcode.LOP_GETIMPORT] = function(state:lobject.ClosureState)
     end;
 end;
 
+OP_TO_CALL[LuauOpcode.LOP_GETUPVAL] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local id2 = LUAU_INSN_B(insn);
+    state.stack[id] = state.ups[id2];
+    
+    state.pc += 1;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_SETUPVAL] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local id2 = LUAU_INSN_B(insn);
+    state.ups[id2] = state.stack[id];
+
+    state.pc += 1;
+end;
+
 OP_TO_CALL[LuauOpcode.LOP_CALL] = function(state:lobject.ClosureState)
     local insn = state.insn;
     state.pc += 1;
@@ -207,7 +242,7 @@ OP_TO_CALL[LuauOpcode.LOP_CALL] = function(state:lobject.ClosureState)
     if nresults == 0 then
         state.top = id + nres - 1;
     else
-        nres = nresults - 1;
+        nres = nresults;
     end;
 
     table.move(ret, 1, nres, id, state.stack);
@@ -226,7 +261,7 @@ OP_TO_CALL[LuauOpcode.LOP_RETURN] = function(state:lobject.ClosureState)
         nresults = state.top - id + 1;
     else
         nresults = id + b - 1;
-    end;
+    end;    
 
     state.ret = table.pack(table.unpack(state.stack, id, id + nresults-1));
 end;
@@ -267,7 +302,6 @@ OP_TO_CALL[LuauOpcode.LOP_ADD] = function(state:lobject.ClosureState)
     local c = state.stack[LUAU_INSN_C(insn)];
 
     state.stack[id] = b + c;
-    state.pc += 1;
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_SUB] = function(state:lobject.ClosureState)
@@ -280,7 +314,6 @@ OP_TO_CALL[LuauOpcode.LOP_SUB] = function(state:lobject.ClosureState)
     local c = state.stack[LUAU_INSN_C(insn)];
 
     state.stack[id] = b - c;
-    state.pc += 1;
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_MUL] = function(state:lobject.ClosureState)
@@ -293,7 +326,6 @@ OP_TO_CALL[LuauOpcode.LOP_MUL] = function(state:lobject.ClosureState)
     local c = state.stack[LUAU_INSN_C(insn)];
 
     state.stack[id] = b * c;
-    state.pc += 1;
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_DIV] = function(state:lobject.ClosureState)
@@ -306,7 +338,6 @@ OP_TO_CALL[LuauOpcode.LOP_DIV] = function(state:lobject.ClosureState)
     local c = state.stack[LUAU_INSN_C(insn)];
 
     state.stack[id] = b / c;
-    state.pc += 1;
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_MOD] = function(state:lobject.ClosureState)
@@ -319,7 +350,6 @@ OP_TO_CALL[LuauOpcode.LOP_MOD] = function(state:lobject.ClosureState)
     local c = state.stack[LUAU_INSN_C(insn)];
 
     state.stack[id] = b % c;
-    state.pc += 1;
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_POW] = function(state:lobject.ClosureState)
@@ -332,12 +362,102 @@ OP_TO_CALL[LuauOpcode.LOP_POW] = function(state:lobject.ClosureState)
     local c = state.stack[LUAU_INSN_C(insn)];
 
     state.stack[id] = b ^ c;
+end;
+
+-- ADDK, SUBK, MULK, DIVK, MODK, POWK: compute arithmetic operation between the source register and a constant and put the result into target register
+OP_TO_CALL[LuauOpcode.LOP_ADDK] = function(state:lobject.ClosureState)
+    local insn = state.insn;
     state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.proto.k[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b + c;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_SUBK] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.proto.k[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b - c;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_MULK] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.proto.k[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b * c;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_DIVK] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.proto.k[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b / c;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_MODK] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.proto.k[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b % c;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_POWK] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = state.stack[LUAU_INSN_B(insn)];
+    local c = state.proto.k[LUAU_INSN_C(insn)];
+
+    state.stack[id] = b ^ c;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_DUPCLOSURE] = function(state:lobject.ClosureState)
+    state.pc += 1;
+    local id = LUAU_INSN_A(state.insn);
+    local id2 = LUAU_INSN_D(state.insn);
+
+    local nproto = state.proto.k[id2];
+    state.stack[id] = wrap_proto(nproto, state.env, state.stack);
+
+    state.pc += nproto.nups;
 end;
 
 -- TODO
 OP_TO_CALL[LuauOpcode.LOP_PREPVARARGS] = function(state:lobject.ClosureState)
     state.pc += 1;
+    local nparams = LUAU_INSN_A(state.insn);
+
+    assert(state.top+1 >= nparams);
+
+    for i = 0, nparams do
+        state.stack[i] = nil;
+    end
 end;
 
 return {

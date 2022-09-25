@@ -11,12 +11,12 @@ This software can be used as study material for luau - lua 5.x internals.
 local vm = require("./VM/main");
 local bytecode = [[BYTECODE]]
 
--- #1
+-- #1 way
 local proto = vm.luau_load(bytecode);
 local closure = vm.wrap_proto(proto);
 closure();
 
--- # 2
+-- #2 way
 local closure = vm.loadstring(bytecode);
 closure();
 ```
