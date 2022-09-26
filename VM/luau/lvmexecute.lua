@@ -5,6 +5,7 @@ local lvmload = require("./VM/luau/lvmload");
 local lbuiltins = require("./VM/luau/lbuiltins");
 
 local LuauOpcode = bytecode.LuauOpcode;
+local LuauCaptureType = bytecode.LuauCaptureType;
 local get_op_name = bytecode.get_op_name;
 local resolve_import = lvmload.resolve_import;
 local fast_functions = lbuiltins.fast_functions;
@@ -42,6 +43,31 @@ end;
 -- E encoding: one signed 24-bit value
 local function LUAU_INSN_E(insn:lobject.Instruction) return bit32.rshift(SIGNED_INT(insn), 8) end;
 
+local function luaF_findupval(state:lobject.ClosureState, id:number) : lobject.UpVal
+    local open_list = state.open_list;
+    local uv = open_list[id];
+    if uv then
+        return uv;
+    end
+    uv = {
+        id = id,
+        stack = state.stack
+    };
+    open_list[id] = uv;
+    return uv;
+end;
+
+local function luaF_close(state:lobject.ClosureState, level:number)
+    local open_list = state.open_list;
+    for i, uv in pairs(open_list) do
+        if uv.id >= level then
+            uv.stack = uv;
+            uv.id = '_';
+            open_list[i] = nil;
+        end
+    end
+end;
+
 -- initialize closure state and wrap it inside a real closure
 function wrap_proto(proto:lobject.Proto, env, ups)
     assert(type(proto) == "table", "wrap_proto: proto is not a table");
@@ -61,7 +87,8 @@ function wrap_proto(proto:lobject.Proto, env, ups)
             insn = 0,
             env = env,
             vararg = args,
-            ups = ups or {},
+            ups = ups,
+            open_list = {},
             stack = table.create(proto.maxstacksize),
             top = -1
         };
@@ -211,9 +238,8 @@ OP_TO_CALL[LuauOpcode.LOP_GETUPVAL] = function(state:lobject.ClosureState)
 
     local id = LUAU_INSN_A(insn);
     local id2 = LUAU_INSN_B(insn);
-    state.stack[id] = state.ups[id2];
-    
-    state.pc += 1;
+    local uv : lobject.UpVal = state.ups[id2];
+    state.stack[id] = uv.stack[uv.id];
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_SETUPVAL] = function(state:lobject.ClosureState)
@@ -222,9 +248,39 @@ OP_TO_CALL[LuauOpcode.LOP_SETUPVAL] = function(state:lobject.ClosureState)
 
     local id = LUAU_INSN_A(insn);
     local id2 = LUAU_INSN_B(insn);
-    state.ups[id2] = state.stack[id];
+    local uv : lobject.UpVal = state.ups[id2];
+    uv.stack[uv.id] = state.stack[id];
+end;
 
+OP_TO_CALL[LuauOpcode.LOP_CLOSEUPVALS] = function(state:lobject.ClosureState)
+    local insn = state.insn;
     state.pc += 1;
+
+    local target = LUAU_INSN_A(insn);
+    luaF_close(state, target);
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_NEWCLOSURE] = function(state:lobject.ClosureState)
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(state.insn);
+    local proto = state.proto.p[LUAU_INSN_D(state.insn)];
+    local ups = {};
+
+    for i = 0, proto.nups - 1 do
+        local uinst = state.proto.code[state.pc];
+        state.pc += 1;
+        local ctype = LUAU_INSN_A(uinst); -- capture type
+        local id = LUAU_INSN_B(uinst); -- capture id
+        if ctype == LuauCaptureType.LCT_VAL then
+            ups[i] = state.stack[id];
+        elseif ctype == LuauCaptureType.LCT_REF then
+            ups[i] = luaF_findupval(state, id);
+        elseif ctype == LuauCaptureType.LCT_UPVAL then
+            ups[i] = state.ups[id];
+        end
+    end;
+    state.stack[id] = wrap_proto(proto, state.env, ups);
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_CALL] = function(state:lobject.ClosureState)
@@ -289,6 +345,10 @@ OP_TO_CALL[LuauOpcode.LOP_FASTCALL] = function(state:lobject.ClosureState)
         state.pc += skip + 1;  -- skip instructions that compute function as well as CALL
         table.move(ret, 1, nresults, id, state.stack);
     end;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_CAPTURE] = function(state:lobject.ClosureState)
+    error("CAPTURE is a pseudo-opcode and must be executed as part of NEWCLOSURE");
 end;
 
 -- ADD, SUB, MUL, DIV, MOD, POW: compute arithmetic operation between two source registers
@@ -443,7 +503,7 @@ OP_TO_CALL[LuauOpcode.LOP_DUPCLOSURE] = function(state:lobject.ClosureState)
     local id2 = LUAU_INSN_D(state.insn);
 
     local nproto = state.proto.k[id2];
-    state.stack[id] = wrap_proto(nproto, state.env, state.stack);
+    state.stack[id] = wrap_proto(nproto, state.env);
 
     state.pc += nproto.nups;
 end;

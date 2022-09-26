@@ -359,11 +359,18 @@ local LuauBytecodeTag =
     LBC_CONSTANT_TABLE = 5,
     LBC_CONSTANT_CLOSURE = 6
 };
+local LuauCaptureType =
+{
+    LCT_VAL = 0,
+    LCT_REF = 1,
+    LCT_UPVAL = 2
+};
 
 return {
     get_op_name = get_op_name,
     LuauOpcode = LuauOpcode,
     LuauBytecodeTag = LuauBytecodeTag,
+    LuauCaptureType = LuauCaptureType,
     LBC_VERSION_MIN = LBC_VERSION_MIN,
     LBC_VERSION_MAX = LBC_VERSION_MAX,
     LBC_VERSION_TARGET = LBC_VERSION_TARGET

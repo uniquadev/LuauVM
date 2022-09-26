@@ -29,8 +29,14 @@ export type ClosureState = {
   env: {any},              -- environment of the function
   vararg: {any},
   ups: {any},              -- upvalues
+  open_list: {any},        -- list of open upvalues
   stack: {any},            -- aka memory
   top: number              -- top free slot of the stack
+};
+
+export type UpVal = {
+  id : number, -- StkId
+  stack : ClosureState
 };
 
 return {};
