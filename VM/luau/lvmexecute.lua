@@ -97,7 +97,7 @@ function wrap_proto(proto:lobject.Proto, env, ups)
             state.stack[i-1] = args[i];
         end;
         -- run closure
-        local res = table.pack(pcall(luau_execute, state, env, upval));
+        local res = table.pack(pcall(luau_execute, state));
         -- check res integrity
         if res[1] then
             return table.unpack(res, 2);
@@ -108,7 +108,7 @@ function wrap_proto(proto:lobject.Proto, env, ups)
 end;
 
 -- vm
-luau_execute = function(state:lobject.ClosureState, env, upval)
+luau_execute = function(state:lobject.ClosureState)
     local code = state.proto.code;
     -- run until flag is set to false
     while state.run do

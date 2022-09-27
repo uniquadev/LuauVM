@@ -1,2 +1,5 @@
 # ignore tests files
 Tests/*
+
+# ignore build file
+LuauVM.lua

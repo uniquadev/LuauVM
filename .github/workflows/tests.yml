@@ -27,8 +27,8 @@ jobs:
           chmod +x luau
       - name: Make tests
         run: |
-          python MakeTests/main.py
+          python MakeTests/main.py -t
       - name: Run tests
         run: |
-          python MakeTests/run.py
+          python MakeTests/run.py -r
 
