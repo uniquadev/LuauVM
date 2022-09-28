@@ -131,9 +131,12 @@ local function default_case(state:lobject.ClosureState)
     local name = state.proto.debugname or 'closure'
     local insn = state.insn;
     local op = LUAU_INSN_OP(insn);
+    local op_name = get_op_name(op);
+    -- special error case
+    assert(op_name, name .. ": invalid opcode reached, possible wrong pc detected.");
     -- error message
     error(("%s: unsupported %d:%s opcode detected at %d"):format(
-        name, 
+        name,
         op, get_op_name(op),
         state.pc
     ));
@@ -322,6 +325,17 @@ OP_TO_CALL[LuauOpcode.LOP_RETURN] = function(state:lobject.ClosureState)
     state.ret = table.pack(table.unpack(state.stack, id, id + nresults-1));
 end;
 
+OP_TO_CALL[LuauOpcode.LOP_JUMPIFNOT] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local offset = LUAU_INSN_D(insn);
+    if not state.stack[id] then
+        state.pc += offset;
+    end;
+end;
+
 OP_TO_CALL[LuauOpcode.LOP_FASTCALL] = function(state:lobject.ClosureState)
     local insn = state.insn;
     state.pc += 1;
@@ -497,6 +511,54 @@ OP_TO_CALL[LuauOpcode.LOP_POWK] = function(state:lobject.ClosureState)
     state.stack[id] = b ^ c;
 end;
 
+OP_TO_CALL[LuauOpcode.LOP_CONCAT] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+
+    local b = LUAU_INSN_B(insn);
+    local c = LUAU_INSN_C(insn);
+
+    local str = "";
+
+    for i = b, c do
+        str = str .. state.stack[i];
+    end
+
+    state.stack[id] = str;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_NOT] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local operand = state.stack[LUAU_INSN_B(insn)];
+
+    state.stack[id] = not operand;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_MINUS] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local operand = state.stack[LUAU_INSN_B(insn)];
+
+    state.stack[id] = -operand;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_LENGTH] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local operand = state.stack[LUAU_INSN_B(insn)];
+
+    state.stack[id] = #operand;
+end;
+
 OP_TO_CALL[LuauOpcode.LOP_DUPCLOSURE] = function(state:lobject.ClosureState)
     state.pc += 1;
     local id = LUAU_INSN_A(state.insn);
@@ -508,7 +570,6 @@ OP_TO_CALL[LuauOpcode.LOP_DUPCLOSURE] = function(state:lobject.ClosureState)
     state.pc += nproto.nups;
 end;
 
--- TODO
 OP_TO_CALL[LuauOpcode.LOP_PREPVARARGS] = function(state:lobject.ClosureState)
     state.pc += 1;
     local nparams = LUAU_INSN_A(state.insn);
@@ -517,6 +578,36 @@ OP_TO_CALL[LuauOpcode.LOP_PREPVARARGS] = function(state:lobject.ClosureState)
 
     for i = 0, nparams do
         state.stack[i] = nil;
+    end
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_JUMPXEQKN] = function(state:lobject.ClosureState)
+    state.pc += 1;
+    local aux = state.proto.code[state.pc];
+    local id = LUAU_INSN_A(state.insn);
+    local kv = state.proto.k[bit32.band(aux, 0xffffff)];
+    assert(type(kv) == 'number');
+
+    local b = bit32.rshift(aux, 31) == 1;
+    if (state.stack[id] == kv) ~= b then
+        state.pc += LUAU_INSN_D(aux);
+    else
+        state.pc += 1;
+    end
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_JUMPXEQKS] = function(state:lobject.ClosureState)
+    state.pc += 1;
+    local aux = state.proto.code[state.pc];
+    local id = LUAU_INSN_A(state.insn);
+    local kv = state.proto.k[bit32.band(aux, 0xffffff)];
+    assert(type(kv) == 'string');
+
+    local b = bit32.rshift(aux, 31) == 1;
+    if (state.stack[id] == kv) ~= b then
+        state.pc += LUAU_INSN_D(state.insn);
+    else
+        state.pc += 1;
     end
 end;
 

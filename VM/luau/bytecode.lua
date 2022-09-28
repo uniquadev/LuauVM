@@ -329,6 +329,20 @@ local LuauOpcode =
     -- D: jump offset (-32768..32767)
     LOP_FORGPREP = 76,
 
+    -- JUMPXEQKNIL, JUMPXEQKB: jumps to target offset if the comparison with constant is true (or false, see AUX)
+    -- A: source register 1
+    -- D: jump offset (-32768..32767; 0 means "next instruction" aka "don't jump")
+    -- AUX: constant value (for boolean) in low bit, NOT flag (that flips comparison result) in high bit
+    LOP_JUMPXEQKNIL = 77,
+    LOP_JUMPXEQKB = 78,
+
+    -- JUMPXEQKN, JUMPXEQKS: jumps to target offset if the comparison with constant is true (or false, see AUX)
+    -- A: source register 1
+    -- D: jump offset (-32768..32767; 0 means "next instruction" aka "don't jump")
+    -- AUX: constant table index in low 24 bits, NOT flag (that flips comparison result) in high bit
+    LOP_JUMPXEQKN = 79,
+    LOP_JUMPXEQKS = 80,
+
     -- Enum entry for number of opcodes, not a valid opcode by itself!
     LOP__COUNT = 77
 };
