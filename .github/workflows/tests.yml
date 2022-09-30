@@ -22,7 +22,7 @@ jobs:
           python-version: '3.x'
       - name: Download luau
         run: |
-          wget https://github.com/Roblox/luau/releases/download/0.537/luau-ubuntu.zip
+          wget https://github.com/Roblox/luau/releases/download/0.547/luau-ubuntu.zip
           unzip luau-ubuntu.zip
           chmod +x luau
       - name: Make tests
