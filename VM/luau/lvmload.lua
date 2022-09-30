@@ -109,6 +109,15 @@ local function luau_load(data:string) -- aka lundump.h in Lua 5.x
                 local iid = st:read_4();
                 k[j] = resolve_import(envt, k, iid);
                 continue
+            elseif tt == LuauBytecodeTag.LBC_CONSTANT_TABLE then
+                local keys = readVarInt(st);
+                local t = table.create(keys);
+                for i=0, keys-1 do
+                    local idx = readVarInt(st);
+                    local key = k[idx];
+                    t[key] = 0.0;
+                end;
+                k[j] = t;
             elseif tt == LuauBytecodeTag.LBC_CONSTANT_CLOSURE then
                 local fid = readVarInt(st);
                 k[j] = protos[fid]; -- store proto struct to be used later
