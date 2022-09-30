@@ -8,7 +8,7 @@ This software can be used as study material for luau - lua 5.x internals.
 
 # Usage
 ```lua
-local vm = require("./VM/main");
+local vm = require("./VM/main"); -- require("LuauVM");
 local bytecode = [[BYTECODE]]
 
 -- #1 way
@@ -24,8 +24,8 @@ closure();
 > **Note:** only an interpreter is provided and compiled code must be obtained from a supported luau compiler
 
 # Tests
-1) Run `python MakeTests\main.py`
-2) Run `python MakeTests\run.py`
+1) Run `python MakeTests\main.py -t` to build tests scripts in Tests directory
+2) Run `python MakeTests\run.py - r` to run all tests scripts
 
 # License
 [MIT LICENSE](https://github.com/uniquadev/LuauVM/blob/master/LICENSE.txt)
