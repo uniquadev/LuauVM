@@ -433,6 +433,26 @@ OP_TO_CALL[LuauOpcode.LOP_CAPTURE] = function(state:lobject.ClosureState)
     error("CAPTURE is a pseudo-opcode and must be executed as part of NEWCLOSURE");
 end;
 
+-- JUMPIFEQK: jumps to target offset if the comparison with constant is true (or false, for NOT variants)
+-- A: source register 1
+-- D: jump offset (-32768..32767; 0 means "next instruction" aka "don't jump")
+-- AUX: constant table index
+OP_TO_CALL[LuauOpcode.LOP_JUMPIFEQK] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local offset = LUAU_INSN_D(insn);
+    local aux = state.proto.code[state.pc];
+    state.pc += 1;
+    
+    local const = state.proto.k[aux];
+
+    if state.stack[id] == const then
+        state.pc += offset;
+    end;
+end;
+
 -- ADD, SUB, MUL, DIV, MOD, POW: compute arithmetic operation between two source registers
 OP_TO_CALL[LuauOpcode.LOP_ADD] = function(state:lobject.ClosureState)
     local insn = state.insn;
