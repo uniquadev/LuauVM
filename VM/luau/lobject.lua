@@ -5,7 +5,8 @@ export type Proto = {
   k: {any},               -- constants used by the function, TValue is not necessary
   p: {Proto},             -- protos defined inside the proto
 
-  abslineinfo: number?,   -- baseline line info, one entry for each 1<<linegaplog2 instructions; allocated after lineinfo
+  linegaplog2: number?,    -- log2 of the line gap between instructions
+  absoffset: number?,     -- baseline line info, one entry for each 1<<linegaplog2 instructions; allocated after lineinfo
   lineinfo: {number}?,    -- for each instruction, line number as a delta from baseline
 
   upvalues: {string},     -- upvalue names, allocated after code
@@ -28,7 +29,7 @@ export type ClosureState = {
   pc: number,              -- program counter
   env: {any},              -- environment of the function
   vararg: {any},
-  ups: {any},              -- upvalues
+  upsref: {any},              -- upvalues names
   open_list: {any},        -- list of open upvalues
   stack: {any},            -- aka memory
   top: number              -- top free slot of the stack

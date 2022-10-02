@@ -136,28 +136,28 @@ local function luau_load(data:string) -- aka lundump.h in Lua 5.x
         local linedefined = readVarInt(st);
         local debugname = read_string(strings, st);
 
-        local abslineinfo, lineinfo;
+        local absoffset, lineinfo, linegaplog2;
         -- check if lineinfo is present
         if st:read() ~= 0 then
-            local linegaplog2 = st:read();
+            linegaplog2 = st:read();
 
             local intervals = bit32.rshift((sizecode - 1), linegaplog2) + 1;
-            local absooffset = bit32.band((sizecode + 3), bit32.bnot(3));
+            absoffset = bit32.band((sizecode + 3), bit32.bnot(3));
 
-            local sizelineinfo = absooffset + intervals * 4;
+            local sizelineinfo = absoffset + intervals;
             lineinfo = table.create(sizelineinfo);
-            abslineinfo = absooffset/4; -- i guess
 
             local lastoffset = 0;
             for j=0, sizecode-1 do
                 lastoffset += st:read();
+                lastoffset = lastoffset % 256;
                 lineinfo[j] = lastoffset;
             end;
 
             local lastline = 0;
             for j=0, intervals-1 do
                 lastline += st:read_4();
-                lineinfo[abslineinfo + j] = lastline;
+                lineinfo[absoffset + j] = lastline;
             end;
         end;
 
@@ -190,7 +190,8 @@ local function luau_load(data:string) -- aka lundump.h in Lua 5.x
             k = k,
             p = p,
 
-            abslineinfo = abslineinfo,
+            linegaplog2 = linegaplog2,
+            absoffset = absoffset,
             lineinfo = lineinfo,
 
             upvalues = upvalues,
