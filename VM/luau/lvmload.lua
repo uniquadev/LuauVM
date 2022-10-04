@@ -37,12 +37,12 @@ local function resolve_import(envt, k, id)
 
     import = envt[k[id0]];
 
-    if id1 > 0 and import == nil then
-        import = envt[k[id1]];
+    if id1 > 0 and import then
+        import = import[k[id1]];
     end;
 
-    if id2 > 0 and import == nil then
-        import = envt[k[id2]];
+    if id2 > 0 and import then
+        import = import[k[id2]];
     end;
 
     return import;

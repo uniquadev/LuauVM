@@ -26,7 +26,7 @@ print(("{file}: executed in %.3fms"):format(call_delta * 1000));
 if res[1] then
     -- check return code
     if res[2] ~= 0 then
-        print(("{file}: execution failed with code %d"):format(tostring(res[2])));
+        print(("{file}: execution failed with code %s"):format(tostring(res[2])));
     else
         print("{file} PASSED");
     end;

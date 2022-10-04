@@ -116,7 +116,7 @@ function wrap_proto(proto:lobject.Proto, env, upsref)
         -- execution error handling
         local err = res[2]--:gsub(".*:%d*: ", '');
         local line = luaG_getline(proto, state.pc);
-        error(("vm:%i: %s"):format(line, err));
+        error(("chunk:%i: %s"):format(line, err));
     end;
 end;
 
@@ -129,6 +129,7 @@ luau_execute = function(state:lobject.ClosureState)
         state.insn = code[state.pc];
         -- call operator handler
         local op = LUAU_INSN_OP(state.insn);
+        --print(state.pc, get_op_name(op))
         OP_TO_CALL[op](state);
     end;
     -- unpack return
@@ -202,6 +203,7 @@ OP_TO_CALL[LuauOpcode.LOP_MOVE] = function(state:lobject.ClosureState)
 
     local id = LUAU_INSN_A(insn);
     local id2 = LUAU_INSN_B(insn);
+
     state.stack[id] = state.stack[id2];
 end;
 
@@ -387,9 +389,10 @@ OP_TO_CALL[LuauOpcode.LOP_CALL] = function(state:lobject.ClosureState)
     local ret = table.pack(state.stack[id](table.unpack(state.stack, id + 1, id + params)));
     local nres = ret.n;
 
-    if nresults == 0 then
+    if nresults == LUA_MULTRET then
         state.top = id + nres - 1;
     else
+        state.top = -1;
         nres = nresults;
     end;
 
@@ -405,13 +408,14 @@ OP_TO_CALL[LuauOpcode.LOP_RETURN] = function(state:lobject.ClosureState)
     local b = LUAU_INSN_B(insn);
     local nresults;
 
-    if b == LUA_MULTRET then
+    if b == 0 then
         nresults = state.top - id + 1;
     else
-        nresults = id + b - 1;
-    end;    
+        nresults = b - 1;
+    end;
+    --print(b, nresults, id, id + nresults)
 
-    state.ret = table.pack(table.unpack(state.stack, id, id + nresults-1));
+    table.move(state.stack, id, id + nresults - 1, 1, state.ret);
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_JUMP] = function(state:lobject.ClosureState)
@@ -441,6 +445,84 @@ OP_TO_CALL[LuauOpcode.LOP_JUMPIFNOT] = function(state:lobject.ClosureState)
     end;
 end;
 
+OP_TO_CALL[LuauOpcode.LOP_JUMPIFEQ] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local offset = LUAU_INSN_D(insn);
+    local aux = state.proto.code[state.pc];
+
+    if state.stack[id] == state.stack[aux] then
+        state.pc += offset;
+    end;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_JUMPIFLE] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local offset = LUAU_INSN_D(insn);
+    local aux = state.proto.code[state.pc];
+
+    if state.stack[id] <= state.stack[aux] then
+        state.pc += offset;
+    end;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_JUMPIFLT] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local offset = LUAU_INSN_D(insn);
+    local aux = state.proto.code[state.pc];
+
+    if state.stack[id] < state.stack[aux] then
+        state.pc += offset;
+    end;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_JUMPIFNOTEQ] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local offset = LUAU_INSN_D(insn);
+    local aux = state.proto.code[state.pc];
+
+    if state.stack[id] ~= state.stack[aux] then
+        state.pc += offset;
+    end;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_JUMPIFNOTLE] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local offset = LUAU_INSN_D(insn);
+    local aux = state.proto.code[state.pc];
+
+    if state.stack[id] > state.stack[aux] then
+        state.pc += offset;
+    end;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_JUMPIFNOTLT] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local offset = LUAU_INSN_D(insn);
+    local aux = state.proto.code[state.pc];
+
+    if state.stack[id] >= state.stack[aux] then
+        state.pc += offset;
+    end;
+end;
+
 OP_TO_CALL[LuauOpcode.LOP_FASTCALL] = function(state:lobject.ClosureState)
     local insn = state.insn;
     state.pc += 1;
@@ -458,11 +540,18 @@ OP_TO_CALL[LuauOpcode.LOP_FASTCALL] = function(state:lobject.ClosureState)
     local params = nparams == LUA_MULTRET and state.top - id or nparams;
     local func = fast_functions[bfid];
     local ret = table.pack(func(table.unpack(state.stack, id + 1, id + params)));
+    local nres = ret.n;
 
+    if nresults == LUA_MULTRET then
+        state.top = id + nres - 1;
+    else
+        state.top = -1;
+        nres = nresults;
+    end;
+    
     if ret.n >= 0 then
-        state.top = nresults == LUA_MULTRET and id + ret.n or -1;
         state.pc += skip + 1;  -- skip instructions that compute function as well as CALL
-        table.move(ret, 1, nresults, id, state.stack);
+        table.move(ret, 1, nres, id, state.stack);
     end;
 end;
 
@@ -502,11 +591,39 @@ OP_TO_CALL[LuauOpcode.LOP_JUMPIFNOTEQK] = function(state:lobject.ClosureState)
     end;
 end;
 
--- FASTCALL2: perform a fast call of a built-in function using 2 register arguments
--- A: builtin function id (see LuauBuiltinFunction)
--- B: source argument register
--- C: jump offset to get to following CALL
--- AUX: source register 2 in least-significant byte
+
+OP_TO_CALL[LuauOpcode.LOP_FASTCALL1] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local bfid = LUAU_INSN_A(insn);
+    local skip = LUAU_INSN_C(insn);
+    -- local aux = state.proto.code[state.pc];
+
+    local call = state.proto.code[state.pc + skip];
+    assert(LUAU_INSN_OP(call) == LuauOpcode.LOP_CALL);
+
+    local id = LUAU_INSN_A(call);
+    local nresults = LUAU_INSN_C(call) - 1;
+
+    local func = fast_functions[bfid];
+    local arg1 = state.stack[LUAU_INSN_B(insn)];
+    local ret = table.pack(func(arg1, arg1));
+    local nres = ret.n;
+
+    if nresults == LUA_MULTRET then
+        state.top = id + nres - 1;
+    else
+        state.top = -1;
+        nres = nresults;
+    end;
+
+    if ret.n >= 0 then
+        state.pc += skip + 1;  -- skip instructions that compute function as well as CALL
+        table.move(ret, 1, nres, id, state.stack);
+    end;
+end;
+
 OP_TO_CALL[LuauOpcode.LOP_FASTCALL2] = function(state:lobject.ClosureState)
     local insn = state.insn;
     state.pc += 1;
@@ -525,11 +642,18 @@ OP_TO_CALL[LuauOpcode.LOP_FASTCALL2] = function(state:lobject.ClosureState)
     local arg1 = state.stack[LUAU_INSN_B(aux)];
     local arg2 = state.stack[aux];
     local ret = table.pack(func(arg1, arg2));
+    local nres = ret.n;
+
+    if nresults == LUA_MULTRET then
+        state.top = id + nres - 1;
+    else
+        state.top = -1;
+        nres = nresults;
+    end;
 
     if ret.n >= 0 then
-        state.top = nresults == LUA_MULTRET and id + ret.n or -1;
         state.pc += skip + 1;  -- skip instructions that compute function as well as CALL
-        table.move(ret, 1, nresults, id, state.stack);
+        table.move(ret, 1, nres, id, state.stack);
     end;
 end;
 
@@ -895,11 +1019,22 @@ OP_TO_CALL[LuauOpcode.LOP_JUMPXEQKN] = function(state:lobject.ClosureState)
 
     local b = bit32.rshift(aux, 31) == 1;
     if (state.stack[id] == kv) ~= b then
-        state.pc += LUAU_INSN_D(aux);
+        state.pc += LUAU_INSN_D(state.insn);
     else
         state.pc += 1;
     end
 end;
+
+OP_TO_CALL[LuauOpcode.LOP_JUMPXEQKNIL] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+    -- local aux = state.proto.code[state.pc];
+    state.pc += 1;
+
+    local v = state.stack[LUAU_INSN_A(insn)];
+    state.pc += (v == nil) and LUAU_INSN_D(insn) or 0;
+end;
+
 
 OP_TO_CALL[LuauOpcode.LOP_JUMPXEQKS] = function(state:lobject.ClosureState)
     state.pc += 1;

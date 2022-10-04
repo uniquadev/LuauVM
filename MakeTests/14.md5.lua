@@ -81,6 +81,7 @@ local md5 = {
       local to_bits -- needs to be declared before bit_not
   
       bit_not = function(n)
+        print(3, to_bits)
         local tbl = to_bits(n)
         local size = math.max(#tbl, 32)
         for i = 1, size do
@@ -112,8 +113,11 @@ local md5 = {
   
         return tbl
       end
+
+      print(1, to_bits)
   
       bit_or = function(m, n)
+        print(3, to_bits)
         local tbl_m = to_bits(m)
         local tbl_n = to_bits(n)
         expand(tbl_m, tbl_n)
@@ -131,6 +135,7 @@ local md5 = {
       end
   
       bit_and = function(m, n)
+        print(4, to_bits)
         local tbl_m = to_bits(m)
         local tbl_n = to_bits(n)
         expand(tbl_m, tbl_n)
@@ -148,6 +153,7 @@ local md5 = {
       end
   
       bit_xor = function(m, n)
+        print(3, to_bits)
         local tbl_m = to_bits(m)
         local tbl_n = to_bits(n)
         expand(tbl_m, tbl_n)
@@ -192,6 +198,7 @@ local md5 = {
         end
         return bit_and(n, 0xFFFFFFFF)
       end
+      print(2, to_bits)
     end
   end
   
@@ -365,7 +372,11 @@ local md5 = {
   
     if padLen == 0 then padLen = 64 end
   
-    local s = char(128) .. rep(char(0),padLen-1) .. lei2str(bit_and(8*msgLen, 0xFFFFFFFF)) .. lei2str(math.floor(msgLen/0x20000000))
+    local s = char(128) ..
+    rep(char(0),padLen-1) ..
+    lei2str(bit_and(8*msgLen, 0xFFFFFFFF)) ..
+    lei2str(math.floor(msgLen/0x20000000))
+    
     md5_update(self, s)
   
     assert(self.pos % 64 == 0)

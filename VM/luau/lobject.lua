@@ -29,7 +29,7 @@ export type ClosureState = {
   pc: number,              -- program counter
   env: {any},              -- environment of the function
   vararg: {any},
-  upsref: {any},              -- upvalues names
+  upsref: {any},           -- upvalues names
   open_list: {any},        -- list of open upvalues
   stack: {any},            -- aka memory
   top: number              -- top free slot of the stack
