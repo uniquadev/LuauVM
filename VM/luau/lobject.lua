@@ -37,7 +37,8 @@ export type ClosureState = {
 
 export type UpVal = {
   id : number, -- StkId
-  stack : ClosureState
+  stack : ClosureState,
+  value : any
 };
 
 return {};

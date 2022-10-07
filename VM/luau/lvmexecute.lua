@@ -46,13 +46,15 @@ local function LUAU_INSN_E(insn:lobject.Instruction) return bit32.rshift(SIGNED_
 local function new_upval(stack, id:number) : lobject.UpVal
     return {
         id = id,
-        stack = stack
+        stack = stack,
+        v = stack[id]
     };
 end
 local function luaF_findupval(state:lobject.ClosureState, id:number) : lobject.UpVal
     local open_list = state.open_list;
     local uv = open_list[id];
     if uv then
+        uv.v = state.stack[id];
         return uv;
     end
     uv = new_upval(state.stack, id);
@@ -64,8 +66,9 @@ local function luaF_close(state:lobject.ClosureState, level:number)
     local open_list = state.open_list;
     for i, uv in pairs(open_list) do
         if uv.id >= level then
+            uv.v = uv.stack[uv.id];
             uv.stack = uv;
-            uv.id = '_';
+            uv.id = 'v';
             open_list[i] = nil;
         end
     end
@@ -87,8 +90,9 @@ function wrap_proto(proto:lobject.Proto, env, upsref)
     env = env or getfenv(1); -- get env of the calling function
     -- wrap proto
     return function(...)
-        -- solve vararg
-        local args = {unpack({...}, 1, proto.numparams)};
+        local stack = table.create(proto.maxstacksize);
+        local args = table.pack(...);
+        local varargs = {};
         -- define closure state
         local state : lobject.ClosureState = {
             run = true,
@@ -97,16 +101,22 @@ function wrap_proto(proto:lobject.Proto, env, upsref)
             pc = 0,
             insn = 0,
             env = env,
-            vararg = args,
+            vararg = varargs,
             upsref = upsref,
             open_list = {},
-            stack = table.create(proto.maxstacksize),
+            stack = stack,
             top = -1
         };
         -- load args in stack
-        for i = 1, #args do
-            state.stack[i-1] = args[i];
-        end;
+        table.move(args, 1, proto.numparams, 0, stack);
+        -- solve varargs
+        if proto.is_vararg then
+            local start = proto.numparams + 1;
+            local len = args.n - proto.numparams;
+
+            varargs.n = len;
+            table.move(args, start, start + len, 1, varargs);
+        end
         -- run closure
         local res = table.pack(pcall(luau_execute, state));
         -- check res integrity
@@ -129,7 +139,7 @@ luau_execute = function(state:lobject.ClosureState)
         state.insn = code[state.pc];
         -- call operator handler
         local op = LUAU_INSN_OP(state.insn);
-        --print(state.pc, get_op_name(op))
+        
         OP_TO_CALL[op](state);
     end;
     -- unpack return
@@ -164,6 +174,8 @@ setmetatable(OP_TO_CALL, {
 OP_TO_CALL[LuauOpcode.LOP_NOP] = function(state:lobject.ClosureState)
     state.pc += 1;
 end;
+
+OP_TO_CALL[LuauOpcode.LOP_BREAK] = OP_TO_CALL[LuauOpcode.LOP_NOP];
 
 OP_TO_CALL[LuauOpcode.LOP_LOADNIL] = function(state:lobject.ClosureState)
     state.pc += 1;
@@ -307,7 +319,8 @@ OP_TO_CALL[LuauOpcode.LOP_GETUPVAL] = function(state:lobject.ClosureState)
     local id = LUAU_INSN_A(insn);
     local id2 = LUAU_INSN_B(insn);
     local uv : lobject.UpVal = state.upsref[id2];
-    state.stack[id] = uv.stack[uv.id];
+
+    state.stack[id] = uv.v;
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_SETUPVAL] = function(state:lobject.ClosureState)
@@ -318,6 +331,7 @@ OP_TO_CALL[LuauOpcode.LOP_SETUPVAL] = function(state:lobject.ClosureState)
     local id2 = LUAU_INSN_B(insn);
     local uv : lobject.UpVal = state.upsref[id2];
     uv.stack[uv.id] = state.stack[id];
+    uv.v = state.stack[id];
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_CLOSEUPVALS] = function(state:lobject.ClosureState)
@@ -358,6 +372,9 @@ OP_TO_CALL[LuauOpcode.LOP_NEWCLOSURE] = function(state:lobject.ClosureState)
             upsref[i] = state.upsref[id2];
         end
     end;
+
+    
+
     state.stack[id] = wrap_proto(proto, state.env, upsref);
 end;
 
@@ -455,6 +472,8 @@ OP_TO_CALL[LuauOpcode.LOP_JUMPIFEQ] = function(state:lobject.ClosureState)
 
     if state.stack[id] == state.stack[aux] then
         state.pc += offset;
+    else
+        state.pc += 1;
     end;
 end;
 
@@ -468,6 +487,8 @@ OP_TO_CALL[LuauOpcode.LOP_JUMPIFLE] = function(state:lobject.ClosureState)
 
     if state.stack[id] <= state.stack[aux] then
         state.pc += offset;
+    else
+        state.pc += 1;
     end;
 end;
 
@@ -481,6 +502,8 @@ OP_TO_CALL[LuauOpcode.LOP_JUMPIFLT] = function(state:lobject.ClosureState)
 
     if state.stack[id] < state.stack[aux] then
         state.pc += offset;
+    else
+        state.pc += 1;
     end;
 end;
 
@@ -494,6 +517,8 @@ OP_TO_CALL[LuauOpcode.LOP_JUMPIFNOTEQ] = function(state:lobject.ClosureState)
 
     if state.stack[id] ~= state.stack[aux] then
         state.pc += offset;
+    else
+        state.pc += 1;
     end;
 end;
 
@@ -507,6 +532,8 @@ OP_TO_CALL[LuauOpcode.LOP_JUMPIFNOTLE] = function(state:lobject.ClosureState)
 
     if state.stack[id] > state.stack[aux] then
         state.pc += offset;
+    else
+        state.pc += 1;
     end;
 end;
 
@@ -520,6 +547,8 @@ OP_TO_CALL[LuauOpcode.LOP_JUMPIFNOTLT] = function(state:lobject.ClosureState)
 
     if state.stack[id] >= state.stack[aux] then
         state.pc += offset;
+    else
+        state.pc += 1;
     end;
 end;
 
@@ -596,64 +625,105 @@ OP_TO_CALL[LuauOpcode.LOP_FASTCALL1] = function(state:lobject.ClosureState)
     local insn = state.insn;
     state.pc += 1;
 
-    local bfid = LUAU_INSN_A(insn);
-    local skip = LUAU_INSN_C(insn);
-    -- local aux = state.proto.code[state.pc];
+    -- we consider safe all non vararg functions
+    if state.proto.is_vararg == false then
+        local bfid = LUAU_INSN_A(insn);
+        local skip = LUAU_INSN_C(insn);
+        -- local aux = state.proto.code[state.pc];
 
-    local call = state.proto.code[state.pc + skip];
-    assert(LUAU_INSN_OP(call) == LuauOpcode.LOP_CALL);
+        local call = state.proto.code[state.pc + skip];
+        assert(LUAU_INSN_OP(call) == LuauOpcode.LOP_CALL);
 
-    local id = LUAU_INSN_A(call);
-    local nresults = LUAU_INSN_C(call) - 1;
+        local id = LUAU_INSN_A(call);
+        local nresults = LUAU_INSN_C(call) - 1;
 
-    local func = fast_functions[bfid];
-    local arg1 = state.stack[LUAU_INSN_B(insn)];
-    local ret = table.pack(func(arg1, arg1));
-    local nres = ret.n;
+        local func = fast_functions[bfid];
+        local arg1 = state.stack[LUAU_INSN_B(insn)];
 
-    if nresults == LUA_MULTRET then
-        state.top = id + nres - 1;
-    else
-        state.top = -1;
-        nres = nresults;
-    end;
+        local ret = table.pack(func(arg1));
+        local nres = ret.n;
 
-    if ret.n >= 0 then
+        if nresults == LUA_MULTRET then
+            state.top = id + nres - 1;
+        else
+            state.top = -1;
+            nres = nresults;
+        end;
+
         state.pc += skip + 1;  -- skip instructions that compute function as well as CALL
         table.move(ret, 1, nres, id, state.stack);
-    end;
+    end
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_FASTCALL2] = function(state:lobject.ClosureState)
     local insn = state.insn;
     state.pc += 1;
 
-    local bfid = LUAU_INSN_A(insn);
-    local skip = LUAU_INSN_C(insn);
-    local aux = state.proto.code[state.pc];
+    -- we consider safe all non vararg functions
+    if state.proto.is_vararg == false then
+        local bfid = LUAU_INSN_A(insn);
+        local skip = LUAU_INSN_C(insn);
+        local aux = state.proto.code[state.pc];
 
-    local call = state.proto.code[state.pc + skip];
-    assert(LUAU_INSN_OP(call) == LuauOpcode.LOP_CALL);
+        local call = state.proto.code[state.pc + skip];
+        assert(LUAU_INSN_OP(call) == LuauOpcode.LOP_CALL);
 
-    local id = LUAU_INSN_A(call);
-    local nresults = LUAU_INSN_C(call) - 1;
+        local id = LUAU_INSN_A(call);
+        local nresults = LUAU_INSN_C(call) - 1;
 
-    local func = fast_functions[bfid];
-    local arg1 = state.stack[LUAU_INSN_B(aux)];
-    local arg2 = state.stack[aux];
-    local ret = table.pack(func(arg1, arg2));
-    local nres = ret.n;
+        local func = fast_functions[bfid];
+        local arg1 = state.stack[LUAU_INSN_B(aux)];
+        local arg2 = state.stack[aux];
+        local ret = table.pack(func(arg1, arg2));
+        local nres = ret.n;
 
-    if nresults == LUA_MULTRET then
-        state.top = id + nres - 1;
-    else
-        state.top = -1;
-        nres = nresults;
-    end;
-
-    if ret.n >= 0 then
+        if nresults == LUA_MULTRET then
+            state.top = id + nres - 1;
+        else
+            state.top = -1;
+            nres = nresults;
+        end;
+        
         state.pc += skip + 1;  -- skip instructions that compute function as well as CALL
         table.move(ret, 1, nres, id, state.stack);
+    else
+        state.pc += 1; -- skip aux
+    end;
+end;
+
+OP_TO_CALL[LuauOpcode.LOP_FASTCALL2K] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    -- we consider safe all non vararg functions
+    if state.proto.is_vararg == false then
+        local bfid = LUAU_INSN_A(insn);
+        local skip = LUAU_INSN_C(insn);
+        local aux = state.proto.code[state.pc];
+
+        local call = state.proto.code[state.pc + skip];
+        assert(LUAU_INSN_OP(call) == LuauOpcode.LOP_CALL);
+
+        local id = LUAU_INSN_A(call);
+        local nresults = LUAU_INSN_C(call) - 1;
+
+        local func = fast_functions[bfid];
+        local arg1 = state.stack[LUAU_INSN_B(insn)];
+        local arg2 = state.proto.k[aux];
+        local ret = table.pack(func(arg1, arg2));
+        local nres = ret.n;
+
+        if nresults == LUA_MULTRET then
+            state.top = id + nres - 1;
+        else
+            state.top = -1;
+            nres = nresults;
+        end;
+        
+        state.pc += skip + 1;  -- skip instructions that compute function as well as CALL
+        table.move(ret, 1, nres, id, state.stack);
+    else
+        state.pc += 1; -- skip aux
     end;
 end;
 
@@ -974,6 +1044,22 @@ OP_TO_CALL[LuauOpcode.LOP_FORGPREP_NEXT] = function(state:lobject.ClosureState)
     state.pc += LUAU_INSN_D(state.insn);
 end;
 
+OP_TO_CALL[LuauOpcode.LOP_GETVARARGS] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local id = LUAU_INSN_A(insn);
+    local n = LUAU_INSN_B(insn) - 1;
+    local vararg = state.vararg;
+
+    if n == LUA_MULTRET then
+        n = vararg.n;
+        state.top = id + n;
+    end
+
+    table.move(vararg, 1, n, id, state.stack);
+end;
+
 OP_TO_CALL[LuauOpcode.LOP_DUPCLOSURE] = function(state:lobject.ClosureState)
     state.pc += 1;
     local id = LUAU_INSN_A(state.insn);
@@ -1001,13 +1087,7 @@ end;
 
 OP_TO_CALL[LuauOpcode.LOP_PREPVARARGS] = function(state:lobject.ClosureState)
     state.pc += 1;
-    local nparams = LUAU_INSN_A(state.insn);
-
-    assert(state.top+1 >= nparams);
-
-    for i = 0, nparams do
-        state.stack[i] = nil;
-    end
+    -- local nparams = LUAU_INSN_A(state.insn);
 end;
 
 OP_TO_CALL[LuauOpcode.LOP_JUMPXEQKN] = function(state:lobject.ClosureState)
