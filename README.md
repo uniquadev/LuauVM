@@ -4,7 +4,10 @@ LuauVM (lowercase u, /ˈlu.aʊ/) is a fast and small [luau](https://github.com/R
 
 This software can be used as study material for luau - lua 5.x internals.
 
-> NOTE: This VM is still work in progress and it can execute scripts like the ones in [MakeTests/src](https://github.com/uniquadev/LuauVM/tree/master/MakeTests/src) folder.
+## NOTE:
+> * This VM won't be maintained constantly over luau updates.
+> * This VM doesn't aim to provide a fast bytecode execution.
+> * This VM has been test with scripts like the ones in [MakeTests/src](https://github.com/uniquadev/LuauVM/tree/master/MakeTests/src) folder.
 
 # Usage
 ```lua
@@ -24,8 +27,10 @@ closure();
 > **Note:** only an interpreter is provided and compiled code must be obtained from a supported luau compiler
 
 # Tests
-1) Run `python MakeTests\main.py -t` to build tests scripts in Tests directory
-2) Run `python MakeTests\run.py - r` to run all tests scripts
+1) `python MakeTests\main.py -t` to build tests scripts in Tests directory
+  - Tests' scripts must return 0 to pass the check.
+2) `python MakeTests\run.py - r` to run all built tests
+* `luau "<path/to/test-script>"` to run a specific test script 
 
 # License
 [MIT LICENSE](https://github.com/uniquadev/LuauVM/blob/master/LICENSE.txt)
