@@ -7,7 +7,7 @@ This software can be used as study material for luau - lua 5.x internals.
 ## NOTE:
 > * This VM won't be maintained constantly over luau updates.
 > * This VM doesn't aim to provide a fast bytecode execution.
-> * This VM has been test with scripts like the ones in [MakeTests/src](https://github.com/uniquadev/LuauVM/tree/master/MakeTests/src) folder.
+> * This VM has been tested with scripts like the ones in [MakeTests/src](https://github.com/uniquadev/LuauVM/tree/master/MakeTests/src) folder.
 
 # Usage
 ```lua
