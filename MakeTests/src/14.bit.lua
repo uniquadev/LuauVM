@@ -101,7 +101,6 @@ bit_rshift = function(n, bits)
     end
 
     local floor = math.floor
-
     for i=1, bits do
         n = n/2
         n = bit_or(floor(n), high_bit)
@@ -118,4 +117,5 @@ local function lei2str(i)
 end
 
 local P = lei2str(bit_and(8*10, 0xFFFFFFFF))
+print(P)
 return P:sub(1, 1) == "P" and 0 or -1

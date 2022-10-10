@@ -399,9 +399,12 @@ local md5 = {
   end
 
 local m = md5.new()
-m:update('b')
-print(m:finish())
+m:update('some bytes')
+m:update('some more bytes')
+m:update('etc')
 local hres = md5.tohex(m:finish());
 print(hres)
+
+return hres == "1a2f3060d3f7f8b10242891e3fccbdb4" and 0 or -1;
 
 -- def ly ;)

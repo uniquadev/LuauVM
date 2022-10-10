@@ -14,7 +14,7 @@ local fast_functions = lbuiltins.fast_functions;
 local LUA_MULTRET = -1;
 
 -- globals
-local OP_TO_CALL = table.create(#bytecode.LuauOpcode);
+local OP_TO_CALL = table.create(90);
 local wrap_proto;
 local luau_execute;
 
@@ -139,7 +139,6 @@ luau_execute = function(state:lobject.ClosureState)
         state.insn = code[state.pc];
         -- call operator handler
         local op = LUAU_INSN_OP(state.insn);
-        
         OP_TO_CALL[op](state);
     end;
     -- unpack return
@@ -167,7 +166,7 @@ local function default_case(state:lobject.ClosureState)
     ));
 end;
 setmetatable(OP_TO_CALL, {
-    __index = function() return default_case end 
+    __index = function() return default_case end
 });
 
 -- opcodes registration
@@ -352,6 +351,16 @@ OP_TO_CALL[LuauOpcode.LOP_GETTABLEN] = function(state:lobject.ClosureState)
     state.stack[id] = tbl[idx];
 end;
 
+OP_TO_CALL[LuauOpcode.LOP_SETTABLEN] = function(state:lobject.ClosureState)
+    local insn = state.insn;
+    state.pc += 1;
+
+    local src = state.stack[LUAU_INSN_A(insn)];
+    local tbl = state.stack[LUAU_INSN_B(insn)];
+    local idx = LUAU_INSN_C(insn) + 1;
+    tbl[idx] = src;
+end;
+
 OP_TO_CALL[LuauOpcode.LOP_NEWCLOSURE] = function(state:lobject.ClosureState)
     state.pc += 1;
 
@@ -430,7 +439,6 @@ OP_TO_CALL[LuauOpcode.LOP_RETURN] = function(state:lobject.ClosureState)
     else
         nresults = b - 1;
     end;
-    --print(b, nresults, id, id + nresults)
 
     table.move(state.stack, id, id + nresults - 1, 1, state.ret);
 end;
@@ -976,12 +984,13 @@ OP_TO_CALL[LuauOpcode.LOP_FORNPREP] = function(state:lobject.ClosureState)
     local limit = state.stack[id];
     local step = state.stack[id + 1];
     local index = state.stack[id + 2];
-
-    if step > 0 then
+    
+    state.pc += ((step > 0 and index <= limit) or limit <= index) and 0 or offset;
+    if (step > 0) then
         if index > limit then
             state.pc += offset;
         end
-    elseif index > limit then
+    elseif limit > index then
         state.pc += offset;
     end
 end;
@@ -996,13 +1005,13 @@ OP_TO_CALL[LuauOpcode.LOP_FORNLOOP] = function(state:lobject.ClosureState)
     local limit = state.stack[id];
     local step = state.stack[id + 1];
     local index = state.stack[id + 2] + step;
-
     state.stack[id + 2] = index;
-    if step > 0  then
+
+    if step > 0 then
         if index <= limit then
             state.pc += offset;
         end
-    elseif limit <= index then
+    elseif limit <= index  then
         state.pc += offset;
     end
 end;
