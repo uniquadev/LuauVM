@@ -1,6 +1,6 @@
 LuauVM <img src="https://raw.githubusercontent.com/uniquadev/LuauVM/4a4d2e529fea0952546eba07cc4394b6fa3c3830/luau.png" height="40"> ![CI](https://github.com/uniquadev/LuauVM/workflows/build/badge.svg)
 ====
-LuauVM (lowercase u, /ˈlu.aʊ/) is a fast and small [luau](https://github.com/Roblox/luau) interpreter wrote in luau. It aims to provide sandboxing, arbitrary code execution and "obfuscation" templates.
+LuauVM (lowercase u, /ˈlu.aʊ/) is a fast and small [luau](https://github.com/Roblox/luau) interpreter written in Luau. It aims to provide sandboxing, arbitrary code execution and "obfuscation" templates.
 
 This software can be used as study material for luau - lua 5.x internals.
 
@@ -31,6 +31,12 @@ closure();
   - Tests' scripts must return 0 to pass the check.
 2) `python MakeTests\run.py - r` to run all built tests
 * `luau "<path/to/test-script>"` to run a specific test script 
+
+## Support ☕
+
+LuauVM is a free study resource. If it helped you understand Luau internals, you can buy me a coffee to support more deep-dive projects like this one.
+
+<a href="https://buymeacoffee.com/uniqua"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="48"></a>
 
 # License
 [MIT LICENSE](https://github.com/uniquadev/LuauVM/blob/master/LICENSE.txt)
